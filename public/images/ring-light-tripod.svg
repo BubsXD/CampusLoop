@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="g-ringlight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#B48EAD"/>
+      <stop offset="100%" stop-color="#D08770"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g-ringlight)" rx="16"/>
+  <circle cx="60" cy="50" r="30" fill="#ffffff" opacity="0.05"/>
+  <circle cx="340" cy="240" r="40" fill="#ffffff" opacity="0.05"/>
+  <ellipse cx="200" cy="250" rx="90" ry="15" fill="#2E3440" opacity="0.25"/>
+  
+    <path d="M 200 160 L 170 260 M 200 160 L 200 260 M 200 160 L 230 260" fill="none" stroke="#4C566A" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="200" cy="100" r="50" fill="none" stroke="#EBCB8B" stroke-width="12"/>
+    <circle cx="200" cy="100" r="50" fill="none" stroke="#ECEFF4" stroke-width="4" opacity="0.8"/>
+    <rect x="190" y="90" width="20" height="30" rx="2" fill="#3B4252"/>
+  
+</svg>
