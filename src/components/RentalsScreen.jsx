@@ -1,18 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
+import { api } from '../api';
 
-export default function RentalsScreen({ bookings, items, onUpdateStatus }) {
+export default function RentalsScreen({ user, onSelect }) {
   const [ratingModal, setRatingModal] = useState(null);
   const [rating, setRating] = useState(5);
+  
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchBookings = async () => {
+    try {
+      const data = await api.getMyBookings();
+      setBookings(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const handleUpdateStatus = async (id, status) => {
+    try {
+      if (status === 'returned') {
+        await api.returnBooking(id);
+      }
+      fetchBookings();
+    } catch(err) {
+      alert(err.message);
+    }
+  };
+  
+  const handleReview = async () => {
+    try {
+      await api.createReview({ bookingId: ratingModal, rating, comment: '' });
+      setRatingModal(null);
+      setRating(5);
+      fetchBookings(); // To update average rating eventually
+    } catch(err) {
+      alert(err.message);
+    }
+  };
 
   const getStatusClass = (status) => {
     switch(status) {
-      case 'Requested': return 'status-requested';
-      case 'Active': return 'status-active';
-      case 'Returned': return 'status-returned';
+      case 'requested': return 'status-requested';
+      case 'active': return 'status-active';
+      case 'returned': return 'status-returned';
       default: return '';
     }
   };
+
+  if (loading) return <div className="pad text-center" style={{paddingTop:'60px'}}><div className="spinner"></div></div>;
+  if (error) return <div className="pad text-center" style={{paddingTop:'60px', color: 'var(--yellow)'}}>{error}</div>;
 
   return (
     <div className="pad" style={{paddingTop: '16px'}}>
@@ -22,34 +67,31 @@ export default function RentalsScreen({ bookings, items, onUpdateStatus }) {
 
       <div className={bookings.length > 0 ? "item-grid" : ""}>
         {bookings.map(booking => {
-          const item = items.find(i => i.id === booking.itemId);
-          if (!item) return null;
-
           return (
             <div key={booking.id} className="card" style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
               <div className="row mb-3">
-                <span className={`status-badge ${getStatusClass(booking.status)}`}>{booking.status}</span>
-                <span className="muted" style={{fontSize: '11px'}}>ID: {booking.bookingId || booking.id}</span>
+                <span className={`status-badge ${getStatusClass(booking.status)}`} style={{textTransform: 'capitalize'}}>{booking.status}</span>
+                <span className="muted" style={{fontSize: '11px'}}>ID: {booking.id.replace('b_', 'CL-')}</span>
               </div>
               
-              <div style={{display: 'flex', gap: '16px', marginBottom: '20px', flex: 1}}>
+              <div style={{display: 'flex', gap: '16px', marginBottom: '20px', flex: 1, cursor: 'pointer'}} onClick={() => onSelect(booking.item_id)}>
                 <div className="thumb">
-                  <img src={item.image} alt={item.name} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                  <img src={booking.image} alt={booking.title} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
                   <div className="thumb-fallback" style={{display: 'none'}}></div>
                 </div>
                 <div>
-                  <div style={{fontWeight: '700', fontSize: '15px', marginBottom: '6px'}}>{item.name}</div>
-                  <div className="muted" style={{fontSize: '13px', marginBottom: '8px'}}>Owner: {item.owner}</div>
+                  <div style={{fontWeight: '700', fontSize: '15px', marginBottom: '6px'}}>{booking.title}</div>
+                  <div className="muted" style={{fontSize: '13px', marginBottom: '8px'}}>Owner: {booking.owner_name}</div>
                   <div style={{fontWeight: '700', fontSize: '15px'}}>Total: Rs {booking.total.toLocaleString('en-IN')}</div>
                 </div>
               </div>
 
-              {booking.status === 'Requested' && (
-                <button onClick={() => onUpdateStatus(booking.id, 'Active')} className="btn" style={{padding: '12px', fontSize: '14px', marginTop: 'auto'}}>Owner Accept (Sim)</button>
+              {booking.status === 'requested' && (
+                <div className="muted" style={{fontSize: '12px', marginTop: 'auto', textAlign: 'center'}}>Awaiting payment processing</div>
               )}
 
-              {booking.status === 'Active' && (
-                <button onClick={() => { onUpdateStatus(booking.id, 'Returned'); setRatingModal(booking.id); }} className="btn-outline" style={{marginTop: 'auto'}}>Mark as returned</button>
+              {booking.status === 'active' && (
+                <button onClick={() => { handleUpdateStatus(booking.id, 'returned'); setRatingModal(booking.id); }} className="btn-outline" style={{marginTop: 'auto'}}>Mark as returned</button>
               )}
             </div>
           );
@@ -72,7 +114,7 @@ export default function RentalsScreen({ bookings, items, onUpdateStatus }) {
               ))}
             </div>
 
-            <button onClick={() => { setRatingModal(null); setRating(5); }} className="btn">Submit Rating</button>
+            <button onClick={handleReview} className="btn">Submit Rating</button>
           </div>
         </div>
       )}

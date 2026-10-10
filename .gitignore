@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+server/.env
+server/campusloop.db
+server/campusloop.db-journal

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Home as HomeIcon, Search, List, User, PlusCircle, CheckCircle, ShieldCheck, ChevronLeft, Calendar, Info, Star } from 'lucide-react';
-import initialData from './data.json';
+import { api } from './api';
 
 import HomeScreen from './components/HomeScreen';
 import SearchScreen from './components/SearchScreen';
@@ -9,39 +9,46 @@ import BookingScreen from './components/BookingScreen';
 import PaymentScreen from './components/PaymentScreen';
 import RentalsScreen from './components/RentalsScreen';
 import ProfileScreen from './components/ProfileScreen';
+import LoginScreen from './components/LoginScreen';
+import RegisterScreen from './components/RegisterScreen';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Home');
   const [currentScreen, setCurrentScreen] = useState('Home');
   
-  const [items, setItems] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [user, setUser] = useState(initialData.users[0]);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [bookingParams, setBookingParams] = useState(null);
   const [searchInitialCategory, setSearchInitialCategory] = useState('All');
 
+  // Verify token on load
   useEffect(() => {
-    const localItems = localStorage.getItem('cl_items_v2');
-    const localBookings = localStorage.getItem('cl_bookings_v2');
-    if (localItems) setItems(JSON.parse(localItems));
-    else { setItems(initialData.items); localStorage.setItem('cl_items_v2', JSON.stringify(initialData.items)); }
-    
-    if (localBookings) setBookings(JSON.parse(localBookings));
-    else { setBookings(initialData.bookings); localStorage.setItem('cl_bookings_v2', JSON.stringify(initialData.bookings)); }
+    const token = localStorage.getItem('cl_token');
+    if (token) {
+      api.getMe()
+        .then(data => setUser(data.user))
+        .catch(() => {
+          localStorage.removeItem('cl_token');
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (items.length) localStorage.setItem('cl_items_v2', JSON.stringify(items)); }, [items]);
-  useEffect(() => { if (bookings.length) localStorage.setItem('cl_bookings_v2', JSON.stringify(bookings)); }, [bookings]);
-
-  const resetData = () => {
-    setItems(initialData.items);
-    setBookings(initialData.bookings);
-    localStorage.setItem('cl_items_v2', JSON.stringify(initialData.items));
-    localStorage.setItem('cl_bookings_v2', JSON.stringify(initialData.bookings));
+  const handleLogin = (userData, token) => {
+    localStorage.setItem('cl_token', token);
+    setUser(userData);
     setCurrentScreen('Home');
-    setActiveTab('Profile');
+    setActiveTab('Home');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('cl_token');
+    setUser(null);
+    setCurrentScreen('Home');
   };
 
   const navigateTo = (screen, props = {}) => {
@@ -58,45 +65,41 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
-  const addBooking = (booking) => {
-    setBookings([{...booking, id: 'b' + Date.now()}, ...bookings]);
-  };
+  if (loading) {
+    return <div className="app" style={{display:'flex', alignItems:'center', justifyContent:'center'}}><div className="spinner"></div></div>;
+  }
 
-  const updateBookingStatus = (id, status) => {
-    setBookings(bookings.map(b => b.id === id ? { ...b, status } : b));
-  };
-
-  const addItem = (item) => {
-    setItems([{...item, id: 'i' + Date.now()}, ...items]);
-  };
-
-  const activeBooking = bookings.find(b => b.status === 'Requested' || b.status === 'Active');
+  // Screens that don't require login
+  if (!user) {
+    if (currentScreen === 'Register') {
+      return <RegisterScreen onRegister={handleLogin} onBack={() => setCurrentScreen('Home')} />;
+    }
+    if (currentScreen === 'Login' || currentScreen !== 'Home' && currentScreen !== 'Search' && currentScreen !== 'Details') {
+      return <LoginScreen onLogin={handleLogin} onRegisterClick={() => setCurrentScreen('Register')} onBack={() => setCurrentScreen('Home')} />;
+    }
+  }
 
   let ScreenComponent;
   if (currentScreen === 'Home') {
-    ScreenComponent = <HomeScreen items={items} user={user} activeBooking={activeBooking} onNavigateToSearch={handleNavigateToSearch} onSelect={(id) => navigateTo('Details', { itemId: id })} />;
+    ScreenComponent = <HomeScreen user={user} onNavigateToSearch={handleNavigateToSearch} onSelect={(id) => navigateTo('Details', { itemId: id })} onLoginClick={() => setCurrentScreen('Login')} />;
   }
   else if (currentScreen === 'Search') {
-    ScreenComponent = <SearchScreen items={items} initialCategory={searchInitialCategory} onSelect={(id) => navigateTo('Details', { itemId: id })} />;
+    ScreenComponent = <SearchScreen initialCategory={searchInitialCategory} onSelect={(id) => navigateTo('Details', { itemId: id })} />;
   }
   else if (currentScreen === 'Rentals') {
-    ScreenComponent = <RentalsScreen bookings={bookings} items={items} onUpdateStatus={updateBookingStatus} />;
+    ScreenComponent = <RentalsScreen user={user} onSelect={(id) => navigateTo('Details', { itemId: id })} />;
   }
   else if (currentScreen === 'Profile') {
-    ScreenComponent = <ProfileScreen user={user} onReset={resetData} onAdd={addItem} items={items.filter(i => i.owner === user.name)} />;
+    ScreenComponent = <ProfileScreen user={user} onLogout={handleLogout} />;
   }
   else if (currentScreen === 'Details') {
-    const item = items.find(i => i.id === selectedItemId);
-    ScreenComponent = <DetailsScreen item={item} onBack={() => setCurrentScreen(activeTab === 'Search' ? 'Search' : 'Home')} onBook={(params) => navigateTo('Booking', { bookingParams: params })} />;
+    ScreenComponent = <DetailsScreen itemId={selectedItemId} user={user} onBack={() => setCurrentScreen(activeTab === 'Search' ? 'Search' : 'Home')} onBook={(params) => navigateTo('Booking', { bookingParams: params })} />;
   }
   else if (currentScreen === 'Booking') {
-    const item = items.find(i => i.id === bookingParams.itemId);
-    ScreenComponent = <BookingScreen item={item} initialDays={bookingParams.days} onBack={() => setCurrentScreen('Details')} onContinue={(params) => navigateTo('Payment', { bookingParams: params })} />;
+    ScreenComponent = <BookingScreen params={bookingParams} user={user} onBack={() => setCurrentScreen('Details')} onContinue={(params) => navigateTo('Payment', { bookingParams: params })} />;
   }
   else if (currentScreen === 'Payment') {
-    const item = items.find(i => i.id === bookingParams.itemId);
-    ScreenComponent = <PaymentScreen item={item} params={bookingParams} user={user} onBack={() => setCurrentScreen('Booking')} onSuccess={(booking) => {
-      addBooking(booking);
+    ScreenComponent = <PaymentScreen params={bookingParams} user={user} onBack={() => setCurrentScreen('Booking')} onSuccess={() => {
       setActiveTab('Rentals');
       setCurrentScreen('Rentals');
     }} />;
@@ -117,10 +120,10 @@ export default function App() {
         <button className={`nav-item-side ${activeTab === 'Search' ? 'active' : ''}`} onClick={() => { setActiveTab('Search'); setCurrentScreen('Search'); }}>
           <Search size={20} /> <span>Search</span>
         </button>
-        <button className={`nav-item-side ${activeTab === 'Rentals' ? 'active' : ''}`} onClick={() => { setActiveTab('Rentals'); setCurrentScreen('Rentals'); }}>
+        <button className={`nav-item-side ${activeTab === 'Rentals' ? 'active' : ''}`} onClick={() => { setActiveTab('Rentals'); setCurrentScreen(user ? 'Rentals' : 'Login'); }}>
           <List size={20} /> <span>Rentals</span>
         </button>
-        <button className={`nav-item-side ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => { setActiveTab('Profile'); setCurrentScreen('Profile'); }}>
+        <button className={`nav-item-side ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => { setActiveTab('Profile'); setCurrentScreen(user ? 'Profile' : 'Login'); }}>
           <User size={20} /> <span>Profile</span>
         </button>
       </aside>
@@ -138,10 +141,10 @@ export default function App() {
           <button className={`nav-item ${activeTab === 'Search' ? 'active' : ''}`} onClick={() => { setActiveTab('Search'); setCurrentScreen('Search'); }}>
             <Search size={24} /> <span>Search</span>
           </button>
-          <button className={`nav-item ${activeTab === 'Rentals' ? 'active' : ''}`} onClick={() => { setActiveTab('Rentals'); setCurrentScreen('Rentals'); }}>
+          <button className={`nav-item ${activeTab === 'Rentals' ? 'active' : ''}`} onClick={() => { setActiveTab('Rentals'); setCurrentScreen(user ? 'Rentals' : 'Login'); }}>
             <List size={24} /> <span>Rentals</span>
           </button>
-          <button className={`nav-item ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => { setActiveTab('Profile'); setCurrentScreen('Profile'); }}>
+          <button className={`nav-item ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => { setActiveTab('Profile'); setCurrentScreen(user ? 'Profile' : 'Login'); }}>
             <User size={24} /> <span>Profile</span>
           </button>
         </nav>

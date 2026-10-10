@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
 import { ChevronLeft, Info, CheckCircle } from 'lucide-react';
+import { api } from '../api';
 
-export default function PaymentScreen({ item, params, user, onBack, onSuccess }) {
+export default function PaymentScreen({ params, user, onBack, onSuccess }) {
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
-  const [bookingId, setBookingId] = useState('');
+  const [error, setError] = useState('');
+  
+  const { item } = params;
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setProcessing(true);
-    setTimeout(() => {
+    setError('');
+    try {
+      // Simulate network delay
+      await new Promise(r => setTimeout(r, 1500));
+      await api.payBooking(params.bookingId);
+      
       setProcessing(false);
       setDone(true);
-      const newId = 'CL-' + Math.floor(100000 + Math.random() * 900000);
-      setBookingId(newId);
-      setTimeout(() => onSuccess({ itemId: item.id, userId: user.id, status: 'Requested', days: params.days, total: params.total, bookingId: newId }), 2000);
-    }, 1500);
+      setTimeout(() => onSuccess(), 2000);
+    } catch (err) {
+      setError(err.message);
+      setProcessing(false);
+    }
   };
 
   if (done) {
@@ -23,8 +32,8 @@ export default function PaymentScreen({ item, params, user, onBack, onSuccess })
         <div className="success-icon">
           <CheckCircle size={36} />
         </div>
-        <h1 style={{fontSize: '28px', marginBottom: '12px'}}>Request Sent!</h1>
-        <p className="muted mb-4" style={{fontSize:'15px'}}>Your booking ID is <strong style={{color: 'var(--text)'}}>{bookingId}</strong></p>
+        <h1 style={{fontSize: '28px', marginBottom: '12px'}}>Payment Sent!</h1>
+        <p className="muted mb-4" style={{fontSize:'15px'}}>Your booking ID is <strong style={{color: 'var(--text)'}}>{params.bookingId.replace('b_', 'CL-')}</strong></p>
         
         <div className="card mb-4" style={{padding: '24px'}}>
           <div style={{color: 'var(--yellow)', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '16px'}}>
@@ -45,6 +54,8 @@ export default function PaymentScreen({ item, params, user, onBack, onSuccess })
         <h2 style={{margin:0}}>Payment</h2>
       </div>
 
+      {error && <div className="banner" style={{background: 'rgba(191,97,106,0.2)', color: '#BF616A', border: '1px solid #BF616A'}}>{error}</div>}
+
       <div className="split-layout">
         <div>
           <div className="banner" style={{display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'rgba(235, 203, 139, 0.1)', color: 'var(--yellow)', border: '1px solid rgba(235, 203, 139, 0.3)'}}>
@@ -63,18 +74,18 @@ export default function PaymentScreen({ item, params, user, onBack, onSuccess })
         <div>
           <div className="card row" style={{justifyContent: 'flex-start', gap: '16px', marginBottom: '24px'}}>
             <div className="thumb" style={{width: '48px', height: '48px'}}>
-              <img src={item.image} alt={item.name} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+              <img src={item.image} alt={item.title} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
               <div className="thumb-fallback" style={{display: 'none'}}></div>
             </div>
             <div>
-              <div style={{fontWeight: '700', fontSize: '14px', marginBottom: '4px'}}>{item.name}</div>
+              <div style={{fontWeight: '700', fontSize: '14px', marginBottom: '4px'}}>{item.title}</div>
             </div>
           </div>
 
           <div className="card mb-4" style={{padding: '20px'}}>
             <h3 style={{fontWeight: '700', fontSize: '15px', paddingBottom: '16px', borderBottom: '1px solid var(--line)', marginBottom: '16px'}}>Bill Breakdown</h3>
             <div className="row mb-3">
-              <span className="muted">Rent ({params.days} days x Rs {item.price})</span>
+              <span className="muted">Rent ({params.days} days x Rs {item.price_per_day})</span>
               <span style={{fontWeight: '700'}}>Rs {params.rent.toLocaleString('en-IN')}</span>
             </div>
             <div className="row mb-3">
@@ -100,7 +111,7 @@ export default function PaymentScreen({ item, params, user, onBack, onSuccess })
 
           <div className="fixed-bottom desktop-fixed-bottom-reset">
             <button className="btn" onClick={handlePay} disabled={processing} style={{background: 'var(--green)', color: '#2E3440', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-              {processing ? <div className="spinner"></div> : `Pay Rs ${params.total.toLocaleString('en-IN')} (Simulated)`}
+              {processing ? <div className="spinner" style={{borderTopColor:'#2E3440'}}></div> : `Pay Rs ${params.total.toLocaleString('en-IN')} (Simulated)`}
             </button>
           </div>
         </div>

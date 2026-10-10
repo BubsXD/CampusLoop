@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, ShieldCheck, Star } from 'lucide-react';
+import { api } from '../api';
 
-export default function SearchScreen({ items, initialCategory, onSelect }) {
+export default function SearchScreen({ initialCategory, onSelect }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState(initialCategory || 'All');
   const [sortBy, setSortBy] = useState('Relevance');
@@ -9,6 +10,11 @@ export default function SearchScreen({ items, initialCategory, onSelect }) {
   const [noDeposit, setNoDeposit] = useState(false);
   const [maxPrice, setMaxPrice] = useState(300);
   const [recentSearches, setRecentSearches] = useState([]);
+  
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const searchRef = useRef(null);
 
   const categories = ['All', 'Lab', 'Books', 'Electronics', 'Cycles'];
@@ -38,24 +44,44 @@ export default function SearchScreen({ items, initialCategory, onSelect }) {
     }
   };
 
-  let filtered = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCat = category === 'All' || item.category === category;
-    const matchesVerified = !verifiedOnly || true; // Assuming all currently have true/fake verification for owners in this mockup, or filter by rating > 4.5
-    const matchesDeposit = !noDeposit || (!item.deposit && item.value < 5000);
-    const matchesPrice = item.price <= maxPrice;
-    return matchesSearch && matchesCat && matchesVerified && matchesDeposit && matchesPrice;
-  });
-
-  if (sortBy === 'Price low to high') {
-    filtered.sort((a, b) => a.price - b.price);
-  } else if (sortBy === 'Price high to low') {
-    filtered.sort((a, b) => b.price - a.price);
-  } else if (sortBy === 'Top rated') {
-    filtered.sort((a, b) => b.rating - a.rating);
-  }
-
   const isPristine = !searchTerm && category === 'All' && !verifiedOnly && !noDeposit && maxPrice === 300;
+
+  useEffect(() => {
+    if (isPristine) {
+      setItems([]);
+      return;
+    }
+
+    const fetchResults = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = {
+          q: searchTerm,
+          category: category === 'All' ? '' : category,
+          sort: sortBy,
+          verified: verifiedOnly,
+          noDeposit: noDeposit,
+          maxPrice: maxPrice
+        };
+        // Clean up empty params
+        Object.keys(params).forEach(k => (!params[k] && params[k] !== false) && delete params[k]);
+        
+        const data = await api.getItems(params);
+        setItems(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const debounce = setTimeout(() => {
+      fetchResults();
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [searchTerm, category, sortBy, verifiedOnly, noDeposit, maxPrice, isPristine]);
 
   return (
     <div className="pad" style={{paddingTop: '16px'}}>
@@ -142,11 +168,13 @@ export default function SearchScreen({ items, initialCategory, onSelect }) {
 
       {!isPristine && (
         <div style={{fontSize: '14px', fontWeight: '700', marginBottom: '16px'}}>
-          {filtered.length} items found
+          {loading ? 'Searching...' : `${items.length} items found`}
         </div>
       )}
 
-      {!isPristine && filtered.length === 0 ? (
+      {error && <div className="muted text-center" style={{padding: '20px', color: 'var(--yellow)'}}>{error}</div>}
+
+      {!isPristine && !loading && items.length === 0 && !error ? (
         <div className="text-center" style={{padding: '40px 0'}}>
           <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--line)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{margin: '0 auto 16px'}}>
             <circle cx="11" cy="11" r="8"></circle>
@@ -159,22 +187,22 @@ export default function SearchScreen({ items, initialCategory, onSelect }) {
         </div>
       ) : (
         <div className="item-grid">
-          {filtered.map(item => (
+          {items.map(item => (
             <div key={item.id} className="item" onClick={() => { saveRecentSearch(searchTerm); onSelect(item.id); }}>
               <div className="thumb">
-                <img src={item.image} alt={item.name} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                <img src={item.image} alt={item.title} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
                 <div className="thumb-fallback" style={{display: 'none'}}></div>
               </div>
               <div className="item-info">
-                <div className="item-title">{item.name}</div>
+                <div className="item-title">{item.title}</div>
                 <div className="item-owner">
                   {item.owner} 
                   <span style={{color: 'var(--yellow)', display: 'flex', alignItems: 'center'}}><Star size={10} fill="currentColor" style={{marginLeft: '4px', marginRight: '2px'}}/> {item.rating}</span>
                 </div>
-                <div><span className="tag"><ShieldCheck size={10}/> Verified</span></div>
+                <div>{item.verified && <span className="tag"><ShieldCheck size={10}/> Verified</span>}</div>
               </div>
               <div className="price" style={{textAlign: 'right'}}>
-                Rs {item.price} <div style={{fontSize: '10px', color: 'var(--muted)', fontWeight: 'normal'}}>/ day</div>
+                Rs {item.price_per_day} <div style={{fontSize: '10px', color: 'var(--muted)', fontWeight: 'normal'}}>/ day</div>
               </div>
             </div>
           ))}

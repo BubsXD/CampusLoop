@@ -1,22 +1,42 @@
 import React, { useState } from 'react';
 import { ChevronLeft, Calendar } from 'lucide-react';
+import { api } from '../api';
 
-export default function BookingScreen({ item, initialDays, onBack, onContinue }) {
+export default function BookingScreen({ params, user, onBack, onContinue }) {
+  const { item, days: initialDays } = params;
   const [days, setDays] = useState(initialDays || 3);
   const [accepted, setAccepted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const today = new Date();
   const endDate = new Date(today);
   endDate.setDate(today.getDate() + days);
   const formatDate = (date) => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-  const rent = item.price * days;
-  const deposit = item.deposit ? item.deposit : (item.value >= 5000 ? item.value * 0.1 : 0);
+  const rent = item.price_per_day * days;
+  const deposit = item.deposit ? item.deposit : 0;
   const fee = Math.round(rent * 0.02);
   const total = rent + deposit + fee;
 
-  const handleContinue = () => {
-    if (accepted) onContinue({ itemId: item.id, days, rent, deposit, fee, total });
+  const handleContinue = async () => {
+    if (!accepted) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.bookItem({
+        itemId: item.id,
+        startDate: today.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        agreementAccepted: true
+      });
+      // Continue to payment with booking response ID
+      onContinue({ itemId: item.id, bookingId: response.id, days, rent, deposit, fee, total, item });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,6 +45,8 @@ export default function BookingScreen({ item, initialDays, onBack, onContinue })
         <button onClick={onBack} className="back-btn-static"><ChevronLeft size={24} /></button>
         <h2 style={{margin:0}}>Booking Details</h2>
       </div>
+
+      {error && <div className="banner" style={{background: 'rgba(191,97,106,0.2)', color: '#BF616A', border: '1px solid #BF616A'}}>{error}</div>}
 
       <div className="split-layout">
         <div>
@@ -72,17 +94,19 @@ export default function BookingScreen({ item, initialDays, onBack, onContinue })
         <div>
           <div className="card row" style={{justifyContent: 'flex-start', gap: '16px', marginBottom: '24px'}}>
             <div className="thumb">
-              <img src={item.image} alt={item.name} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+              <img src={item.image} alt={item.title} loading="lazy" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
               <div className="thumb-fallback" style={{display: 'none'}}></div>
             </div>
             <div>
-              <div style={{fontWeight: '700', fontSize: '15px', marginBottom: '6px'}}>{item.name}</div>
-              <div style={{color: 'var(--accent)', fontWeight: '700', fontSize: '15px'}}>Rs {item.price} / day</div>
+              <div style={{fontWeight: '700', fontSize: '15px', marginBottom: '6px'}}>{item.title}</div>
+              <div style={{color: 'var(--accent)', fontWeight: '700', fontSize: '15px'}}>Rs {item.price_per_day} / day</div>
             </div>
           </div>
           
           <div className="fixed-bottom desktop-fixed-bottom-reset">
-            <button className="btn" onClick={handleContinue} disabled={!accepted}>Accept and Continue</button>
+            <button className="btn" onClick={handleContinue} disabled={!accepted || loading} style={{display:'flex',justifyContent:'center',alignItems:'center'}}>
+               {loading ? <div className="spinner"></div> : 'Accept and Continue'}
+            </button>
           </div>
         </div>
       </div>
