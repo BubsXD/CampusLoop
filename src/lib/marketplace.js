@@ -4,10 +4,10 @@ export const STORAGE_KEY = 'campusloop-demo-v3';
 export const CATEGORIES = ['All', 'Electronics', 'Lab', 'Books', 'Cycles'];
 export const CONDITIONS = ['Like new', 'Good', 'Fair'];
 export const DEMO_USERS = [
-  { id: 'u1', name: 'Rujal Sharma', initials: 'RS', rollNumber: 'C-25', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
-  { id: 'u2', name: 'Sudhanshu Pendalwar', initials: 'SP', rollNumber: 'C-46', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
-  { id: 'u3', name: 'Shlok Mishra', initials: 'SM', rollNumber: 'C-60', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
-  { id: 'u4', name: 'Vansh Jain', initials: 'VJ', rollNumber: 'C-61', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
+  { id: 'u1', name: 'Rujal Sharma', initials: 'RS', rollNumber: 'C-25', course: 'AI & Data Science', year: 'Second year', campus: 'DYPIT Pimpri' },
+  { id: 'u2', name: 'Sudhanshu Pendalwar', initials: 'SP', rollNumber: 'C-46', course: 'AI & Data Science', year: 'Second year', campus: 'DYPIT Pimpri' },
+  { id: 'u3', name: 'Shlok Mishra', initials: 'SM', rollNumber: 'C-60', course: 'AI & Data Science', year: 'Second year', campus: 'DYPIT Pimpri' },
+  { id: 'u4', name: 'Vansh Jain', initials: 'VJ', rollNumber: 'C-61', course: 'AI & Data Science', year: 'Second year', campus: 'DYPIT Pimpri' },
 ];
 
 const addDays = (date, days) => {

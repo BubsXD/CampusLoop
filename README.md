@@ -34,7 +34,7 @@ The app prevents requests for your own item, periods longer than 30 days, and ov
 
 ## Demo profiles
 
-All four switchable profiles represent the AI & Data Science branch:
+All four switchable profiles represent second-year students in the AI & Data Science branch:
 
 | Name | Roll number |
 | --- | --- |
