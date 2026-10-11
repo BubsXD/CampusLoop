@@ -1,151 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { Home as HomeIcon, Search, List, User, PlusCircle, CheckCircle, ShieldCheck, ChevronLeft, Calendar, Info, Star } from 'lucide-react';
-import initialData from './data.json';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Camera, Check, CheckCircle2, ChevronDown, CircleHelp, Compass, Heart, Laptop, LayoutGrid, MapPin, Menu, Package, Plus, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, Wallet, X } from 'lucide-react';
+import { CATEGORIES, CONDITIONS, createBooking, createItem, daysInclusive, isUnavailable, loadState, makeInitialState, rateBooking, saveState, setItemAvailability, today, updateBooking } from './lib/marketplace';
 
-import HomeScreen from './components/HomeScreen';
-import SearchScreen from './components/SearchScreen';
-import DetailsScreen from './components/DetailsScreen';
-import BookingScreen from './components/BookingScreen';
-import PaymentScreen from './components/PaymentScreen';
-import RentalsScreen from './components/RentalsScreen';
-import ProfileScreen from './components/ProfileScreen';
+const money = value => '₹' + Number(value || 0).toLocaleString('en-IN');
+const dateLabel = value => value ? new Date(value + 'T12:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const categoryIcons = { Electronics: Laptop, Lab: Sparkles, Books: BookOpen, Cycles: Compass };
+const displayYear = new Date().getFullYear();
+const displayDate = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+function Brand() {
+  return <div className="brand"><span className="brand-mark"><span /></span><span>campus<span className="brand-accent">loop</span><small>SHARE MORE. SPEND LESS.</small></span></div>;
+}
+function Pill({ children, tone = '' }) { return <span className={'pill ' + tone}>{children}</span>; }
+function Status({ value }) { return <span className={'status status-' + value.toLowerCase().replaceAll(' ', '-') }><span />{value}</span>; }
+function EmptyState({ icon: Icon = Package, title, text, action, onAction }) {
+  return <div className="empty-state"><span className="empty-icon"><Icon size={27} /></span><h3>{title}</h3><p>{text}</p>{action && <button className="button primary small" onClick={onAction}>{action}<ArrowRight size={16} /></button>}</div>;
+}
+function ItemCard({ item, onClick }) {
+  return <button className="item-card" onClick={onClick} type="button"><div className="item-photo"><img src={item.image} alt="" loading="lazy" /><span className="photo-category">{item.category}</span></div><div className="item-card-body"><div className="item-card-top"><h3>{item.name}</h3><span className="card-arrow"><ArrowUpRight size={18} /></span></div><p className="item-meta"><MapPin size={13} /> DYPIT Pimpri <span>·</span> {item.condition}</p><div className="item-card-footer"><span className="owner-mini"><span>{item.owner?.split(' ').map(part => part[0]).join('').slice(0, 2)}</span>{item.owner}</span><strong>{money(item.price)}<small> / day</small></strong></div></div></button>;
+}
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('Home');
-  const [currentScreen, setCurrentScreen] = useState('Home');
-  
-  const [items, setItems] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [user, setUser] = useState(initialData.users[0]);
-  
-  const [selectedItemId, setSelectedItemId] = useState(null);
-  const [bookingParams, setBookingParams] = useState(null);
-  const [searchInitialCategory, setSearchInitialCategory] = useState('All');
+  const [state, setState] = useState(loadState);
+  const [screen, setScreen] = useState('home');
+  const [selectedId, setSelectedId] = useState(null);
+  const [category, setCategory] = useState('All');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('recommended');
+  const [rentalTab, setRentalTab] = useState('borrowing');
+  const [toast, setToast] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const user = state.users.find(entry => entry.id === state.currentUserId) || state.users[0];
+  const selectedItem = state.items.find(entry => entry.id === selectedId);
+  const myListings = state.items.filter(item => item.ownerId === user.id);
+  const myRentals = state.bookings.filter(booking => booking.renterId === user.id);
+  const lentBookings = state.bookings.filter(booking => state.items.find(item => item.id === booking.itemId)?.ownerId === user.id);
+  const incomingCount = lentBookings.filter(booking => booking.status === 'Pending').length;
+  const featured = state.items.filter(item => item.available && item.ownerId !== user.id).slice(0, 4);
+  useEffect(() => { saveState(state); }, [state]);
+  useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 4000); return () => clearTimeout(timer); }, [toast]);
+  function navigate(next, id) { if (id) setSelectedId(id); setScreen(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function browse(nextCategory = 'All') { setCategory(nextCategory); navigate('browse'); }
+  function act(fn, success) { try { setState(fn(state)); setToast(success); return true; } catch (error) { setToast(error.message); return false; } }
+  const filtered = useMemo(() => {
+    let results = state.items.filter(item => item.available && (category === 'All' || item.category === category) && (item.name + ' ' + item.description + ' ' + item.category).toLowerCase().includes(query.toLowerCase().trim()));
+    if (sort === 'price-asc') results = results.sort((a, b) => a.price - b.price);
+    if (sort === 'price-desc') results = results.sort((a, b) => b.price - a.price);
+    if (sort === 'newest') results = results.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    return results;
+  }, [state.items, category, query, sort]);
+  const title = { home: 'Home', browse: 'Explore items', detail: 'Item details', booking: 'Request item', rentals: 'My rentals', listings: 'My listings', 'new-listing': 'List an item', profile: 'Demo profile' }[screen];
+  return <div className="app-shell">
+    <aside className={'sidebar ' + (menuOpen ? 'open' : '')}>
+      <div className="sidebar-top"><Brand /><button className="icon-button mobile-menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
+      <div className="campus-switch"><span className="campus-icon"><MapPin size={18} /></span><span><strong>DYPIT Pimpri</strong><small>Your campus community</small></span><ChevronDown size={15} /></div>
+      <div className="nav-label">DISCOVER</div>
+      <nav className="side-nav" aria-label="Main navigation"><button className={screen === 'home' ? 'active' : ''} onClick={() => navigate('home')}><LayoutGrid size={20} /> Home</button><button className={['browse', 'detail', 'booking'].includes(screen) ? 'active' : ''} onClick={() => browse()}><Search size={20} /> Explore items</button><button className={screen === 'rentals' ? 'active' : ''} onClick={() => navigate('rentals')}><CalendarDays size={20} /> My rentals {incomingCount > 0 && <b className="nav-count">{incomingCount}</b>}</button></nav>
+      <div className="nav-label second">YOUR SPACE</div>
+      <nav className="side-nav" aria-label="Your space"><button className={['listings', 'new-listing'].includes(screen) ? 'active' : ''} onClick={() => navigate('listings')}><Package size={20} /> My listings</button><button className={screen === 'profile' ? 'active' : ''} onClick={() => navigate('profile')}><CircleHelp size={20} /> Demo profile</button></nav>
+      <div className="sidebar-spacer" /><div className="sidebar-note"><span className="note-icon"><Heart size={19} /></span><strong>Good things go around.</strong><p>Share what you have. Find what you need. Make campus life lighter.</p></div>
+      <button className="sidebar-user" onClick={() => navigate('profile')}><span className="user-avatar">{user.initials}</span><span><strong>{user.name}</strong><small>Demo account</small></span><ArrowUpRight size={17} /></button>
+    </aside>
+    {menuOpen && <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Close navigation" />}
+    <main className="main-area"><header className="topbar"><button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={22} /></button><div className="topbar-path"><span>CampusLoop</span><span className="slash">/</span><strong>{title}</strong></div><div className="topbar-actions"><span className="demo-tag"><span /> LIVE DEMO</span><button className="icon-button notification" onClick={() => navigate('rentals')} aria-label="View rental requests"><Bell size={19} />{incomingCount > 0 && <i />}</button><button className="top-avatar" onClick={() => navigate('profile')} aria-label="Open demo profile">{user.initials}</button></div></header>
+      <div className="content">
+        {screen === 'home' && <HomePage user={user} items={state.items} featured={featured} myRentals={myRentals} onBrowse={browse} onSelect={id => navigate('detail', id)} onList={() => navigate('new-listing')} onRentals={() => navigate('rentals')} />}
+        {screen === 'browse' && <section><div className="page-heading"><div><p className="eyebrow">THE CAMPUS COLLECTION</p><h1>Find your next <em>useful thing.</em></h1><p>Explore gear, books and everyday essentials shared by your campus community.</p></div><button className="button primary" onClick={() => navigate('new-listing')}><Plus size={18} /> List an item</button></div><div className="filter-panel"><div className="search-field"><Search size={20} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search calculators, cameras, cycles..." aria-label="Search items" />{query && <button onClick={() => setQuery('')} aria-label="Clear search"><X size={16} /></button>}</div><div className="select-field"><SlidersHorizontal size={18} /><select value={sort} onChange={event => setSort(event.target.value)} aria-label="Sort items"><option value="recommended">Recommended</option><option value="newest">Newest first</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option></select><ChevronDown size={15} /></div></div><div className="category-tabs">{CATEGORIES.map(name => <button key={name} className={category === name ? 'selected' : ''} onClick={() => setCategory(name)}>{name}</button>)}</div><div className="results-heading"><div><h2>{category === 'All' ? 'All items' : category}</h2><span>{filtered.length} {filtered.length === 1 ? 'item' : 'items'} available</span></div><span className="results-campus"><MapPin size={15} /> DYPIT Pimpri</span></div>{filtered.length ? <div className="catalog-grid">{filtered.map(item => <ItemCard key={item.id} item={item} onClick={() => navigate('detail', item.id)} />)}</div> : <EmptyState icon={Search} title="Nothing found just yet" text="Try another search or category. You can also list an item for your campus." action="Clear filters" onAction={() => { setQuery(''); setCategory('All'); }} />}</section>}
+        {screen === 'detail' && selectedItem && <DetailPage item={selectedItem} user={user} bookings={state.bookings} onBack={() => browse(category)} onBook={() => navigate('booking')} onViewRentals={() => navigate('rentals')} />}
+        {screen === 'booking' && selectedItem && <BookingPage item={selectedItem} state={state} onBack={() => navigate('detail')} onSubmit={values => { if (act(current => createBooking(current, { itemId: selectedItem.id, renterId: user.id, ...values }), 'Request sent. The owner can review it in My rentals.')) navigate('rentals'); }} />}
+        {screen === 'rentals' && <section><div className="page-heading"><div><p className="eyebrow">KEEP THINGS MOVING</p><h1>My <em>rentals.</em></h1><p>Follow requests, handoffs and returns in one place.</p></div><button className="button primary" onClick={() => browse()}><Search size={18} /> Explore items</button></div><div className="segmented"><button className={rentalTab === 'borrowing' ? 'selected' : ''} onClick={() => setRentalTab('borrowing')}>Borrowing <span>{myRentals.length}</span></button><button className={rentalTab === 'lending' ? 'selected' : ''} onClick={() => setRentalTab('lending')}>Lending <span>{lentBookings.length}</span></button></div><div className="rental-list">{(rentalTab === 'borrowing' ? myRentals : lentBookings).map(booking => <BookingCard key={booking.id} booking={booking} item={state.items.find(item => item.id === booking.itemId)} renter={state.users.find(entry => entry.id === booking.renterId)} role={rentalTab === 'borrowing' ? 'renter' : 'owner'} onAction={status => act(current => updateBooking(current, booking.id, status, user.id), 'Booking updated.')} onRate={rating => act(current => rateBooking(current, booking.id, user.id, rating), 'Thanks for rating your experience.')} />)}{(rentalTab === 'borrowing' ? myRentals : lentBookings).length === 0 && <EmptyState icon={CalendarDays} title={rentalTab === 'borrowing' ? 'No rentals yet' : 'No lending requests yet'} text={rentalTab === 'borrowing' ? 'Explore items to make your first booking request.' : 'Requests for your listings will appear here.'} action={rentalTab === 'borrowing' ? 'Explore items' : 'View my listings'} onAction={() => rentalTab === 'borrowing' ? browse() : navigate('listings')} />}</div></section>}
+        {screen === 'listings' && <section><div className="page-heading"><div><p className="eyebrow">GIVE YOUR GEAR A SECOND LIFE</p><h1>My <em>listings.</em></h1><p>Manage the things you share with your campus.</p></div><button className="button primary" onClick={() => navigate('new-listing')}><Plus size={18} /> List an item</button></div>{myListings.length ? <div className="listing-grid">{myListings.map(item => <div className="listing-card" key={item.id}><img src={item.image} alt="" /><div><Pill tone={item.available ? 'green' : 'muted'}>{item.available ? 'Available' : 'Paused'}</Pill><h3>{item.name}</h3><p>{item.category} · {money(item.price)} / day</p><button className="text-action" onClick={() => act(current => setItemAvailability(current, item.id, user.id, !item.available), item.available ? 'Listing paused.' : 'Listing is live again.')}>{item.available ? 'Pause listing' : 'Make available'} <ArrowRight size={15} /></button></div></div>)}</div> : <EmptyState title="Your shelf is empty" text="List something useful that another student could borrow." action="List an item" onAction={() => navigate('new-listing')} />}</section>}
+        {screen === 'new-listing' && <NewListingPage onBack={() => navigate('listings')} onSubmit={values => { if (act(current => createItem(current, user.id, values), 'Your item is now listed.')) navigate('listings'); }} />}
+        {screen === 'profile' && <ProfilePage state={state} user={user} onSwitch={id => { setState(current => ({ ...current, currentUserId: id })); setToast('Switched demo profile.'); navigate('home'); }} onReset={() => { setState(makeInitialState()); setToast('Demo data reset.'); navigate('home'); }} />}
+      </div><footer className="site-footer"><span>© {displayYear} CampusLoop · Made for the DYPIT community</span><span>Demo experience · No real payments</span></footer></main>
+    <nav className="mobile-nav" aria-label="Mobile navigation"><button className={screen === 'home' ? 'active' : ''} onClick={() => navigate('home')}><LayoutGrid size={21} />Home</button><button className={['browse', 'detail', 'booking'].includes(screen) ? 'active' : ''} onClick={() => browse()}><Search size={21} />Explore</button><button className={screen === 'rentals' ? 'active' : ''} onClick={() => navigate('rentals')}><CalendarDays size={21} />Rentals</button><button className={screen === 'profile' ? 'active' : ''} onClick={() => navigate('profile')}><span className="mobile-avatar">{user.initials}</span>Profile</button></nav>
+    {toast && <div className="toast" role="status"><CheckCircle2 size={18} />{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={16} /></button></div>}
+  </div>;
+}
 
-  useEffect(() => {
-    const localItems = localStorage.getItem('cl_items_v2');
-    const localBookings = localStorage.getItem('cl_bookings_v2');
-    if (localItems) setItems(JSON.parse(localItems));
-    else { setItems(initialData.items); localStorage.setItem('cl_items_v2', JSON.stringify(initialData.items)); }
-    
-    if (localBookings) setBookings(JSON.parse(localBookings));
-    else { setBookings(initialData.bookings); localStorage.setItem('cl_bookings_v2', JSON.stringify(initialData.bookings)); }
-  }, []);
+function HomePage({ user, items, featured, myRentals, onBrowse, onSelect, onList, onRentals }) {
+  const active = myRentals.find(booking => ['Pending', 'Confirmed', 'Return requested'].includes(booking.status));
+  const activeItem = active && items.find(item => item.id === active.itemId);
+  return <section className="home-page">
+    <div className="welcome-line"><div><p className="eyebrow">YOUR CAMPUS, YOUR COMMUNITY</p><h1>Hey, {user.name.split(' ')[0]} <span className="wave">✳</span></h1><p>Find what you need. Share what you don’t.</p></div><span className="welcome-date"><CalendarDays size={17} /> {displayDate}</span></div>
+    <div className="hero-banner"><div className="hero-copy"><span className="hero-kicker"><span /> THE SMARTER WAY TO SHARE</span><h2>Why buy it<br />when you can <em>borrow?</em></h2><p>Good gear deserves more than one owner. Discover affordable essentials from students right here on campus.</p><div className="hero-actions"><button className="button light" onClick={() => onBrowse()}>Explore items <ArrowUpRight size={18} /></button><button className="hero-secondary" onClick={onList}>List your item <ArrowRight size={17} /></button></div></div><div className="hero-visual" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><span className="float-icon icon-camera"><Camera size={35} /></span><span className="float-icon icon-book"><BookOpen size={34} /></span><span className="float-icon icon-laptop"><Laptop size={35} /></span><div className="hero-loop">C<span>↗</span></div><div className="visual-caption">The good stuff<br />keeps going around.</div></div></div>
+    <div className="quick-strip"><div><span className="quick-icon coral"><Wallet size={20} /></span><span><strong>Spend less</strong><small>Rent for the days you need</small></span></div><div><span className="quick-icon blue"><MapPin size={20} /></span><span><strong>Stay local</strong><small>Meet right on campus</small></span></div><div><span className="quick-icon yellow"><Heart size={20} /></span><span><strong>Waste less</strong><small>Give good things more use</small></span></div></div>
+    {active && activeItem && <button className="active-rental" onClick={onRentals}><span className="active-rental-icon"><Package size={23} /></span><span><small>YOUR RENTAL UPDATE</small><strong>{activeItem.name}</strong><span>{active.status} · {dateLabel(active.startDate)} to {dateLabel(active.endDate)}</span></span><ArrowRight size={20} /></button>}
+    <div className="section-header"><div><p className="eyebrow">EXPLORE BY CATEGORY</p><h2>Whatever you need, <em>it’s here.</em></h2></div><button className="section-link" onClick={() => onBrowse()}>View all items <ArrowRight size={17} /></button></div>
+    <div className="category-grid">{CATEGORIES.slice(1).map((name, index) => { const Icon = categoryIcons[name]; return <button key={name} className={'category-card category-' + index} onClick={() => onBrowse(name)}><span><Icon size={27} /></span><strong>{name}</strong><small>{({ Electronics: 'Tools for every idea', Lab: 'Ready for practicals', Books: 'Knowledge on repeat', Cycles: 'Go further together' })[name]}</small><ArrowUpRight className="category-arrow" size={18} /></button>; })}</div>
+    <div className="section-header featured-heading"><div><p className="eyebrow">HANDPICKED FOR YOU</p><h2>Worth a <em>look.</em></h2></div><button className="section-link" onClick={() => onBrowse()}>Explore all <ArrowRight size={17} /></button></div>
+    <div className="catalog-grid featured-grid">{featured.map(item => <ItemCard key={item.id} item={item} onClick={() => onSelect(item.id)} />)}</div>
+    <div className="bottom-cta"><span className="bottom-cta-icon"><RotateCcw size={30} /></span><div><strong>Have something someone else could use?</strong><p>It takes a minute to list it. Your gear could make someone’s day.</p></div><button className="button primary" onClick={onList}>List an item <ArrowUpRight size={17} /></button></div>
+  </section>;
+}
 
-  useEffect(() => { if (items.length) localStorage.setItem('cl_items_v2', JSON.stringify(items)); }, [items]);
-  useEffect(() => { if (bookings.length) localStorage.setItem('cl_bookings_v2', JSON.stringify(bookings)); }, [bookings]);
+function DetailPage({ item, user, bookings, onBack, onBook, onViewRentals }) {
+  const nextBooked = bookings.find(booking => booking.itemId === item.id && ['Pending', 'Confirmed'].includes(booking.status));
+  return <section className="detail-page"><button className="back-link" onClick={onBack}><ArrowLeft size={18} /> Back to explore</button><div className="detail-grid"><div><div className="detail-photo"><img src={item.image} alt={item.name} /><span className="detail-photo-tag">{item.category}</span></div><div className="detail-note"><ShieldCheck size={23} /><span><strong>Meet on campus</strong><small>Coordinate a convenient handoff after the owner confirms your request.</small></span></div></div><div className="detail-info"><p className="eyebrow">SHARED BY YOUR CAMPUS</p><h1>{item.name}</h1><p className="detail-location"><MapPin size={16} /> DYPIT Pimpri <span>·</span> {item.condition} condition</p><div className="detail-price"><strong>{money(item.price)}</strong><span>/ day</span></div><div className="detail-divider" /><h3>About this item</h3><p className="detail-description">{item.description}</p><div className="detail-facts"><div><span>Condition</span><strong>{item.condition}</strong></div><div><span>Approx. value</span><strong>{money(item.value)}</strong></div><div><span>Deposit</span><strong>None in demo</strong></div></div><div className="owner-card"><span className="owner-avatar">{item.owner?.split(' ').map(part => part[0]).join('').slice(0, 2)}</span><span><small>LISTED BY</small><strong>{item.owner}</strong><small>DYPIT Pimpri student profile</small></span></div>{item.ownerId === user.id ? <button className="button primary wide" onClick={onViewRentals}>View your requests <ArrowRight size={18} /></button> : <button className="button primary wide" onClick={onBook} disabled={!item.available}>Request this item <ArrowRight size={18} /></button>}<p className="payment-note"><ShieldCheck size={16} /> Demo request only. No payment is collected.</p>{nextBooked && <p className="small-note">Some dates may already have requests. Availability is checked before you send yours.</p>}</div></div></section>;
+}
 
-  const resetData = () => {
-    setItems(initialData.items);
-    setBookings(initialData.bookings);
-    localStorage.setItem('cl_items_v2', JSON.stringify(initialData.items));
-    localStorage.setItem('cl_bookings_v2', JSON.stringify(initialData.bookings));
-    setCurrentScreen('Home');
-    setActiveTab('Profile');
-  };
+function BookingPage({ item, state, onBack, onSubmit }) {
+  const [startDate, setStartDate] = useState(today());
+  const [endDate, setEndDate] = useState(today());
+  const [accepted, setAccepted] = useState(false);
+  const days = daysInclusive(startDate, endDate);
+  const rent = days > 0 ? days * item.price : 0;
+  const conflicting = isUnavailable(state.bookings, item.id, startDate, endDate);
+  const invalid = startDate < today() || days < 1 || days > 30 || conflicting;
+  return <section className="form-page"><button className="back-link" onClick={onBack}><ArrowLeft size={18} /> Back to item</button><div className="page-heading"><div><p className="eyebrow">ONE STEP AWAY</p><h1>Request to <em>borrow.</em></h1><p>Choose your dates. The owner will review your request.</p></div></div><div className="form-grid"><form className="panel booking-form" onSubmit={event => { event.preventDefault(); if (!invalid && accepted) onSubmit({ startDate, endDate }); }}><h2>Rental details</h2><p>Pick a period that works for you. Maximum 30 days per request.</p><div className="date-grid"><label>Start date<input type="date" min={today()} value={startDate} onChange={event => { setStartDate(event.target.value); if (event.target.value > endDate) setEndDate(event.target.value); }} required /></label><label>End date<input type="date" min={startDate || today()} value={endDate} onChange={event => setEndDate(event.target.value)} required /></label></div>{conflicting && <p className="form-error">Another request overlaps these dates. Please choose a different period.</p>}{days > 30 && <p className="form-error">Choose a period of 30 days or less.</p>}<div className="agreement-box"><span className="agreement-icon"><Check size={18} /></span><div><strong>Our simple sharing agreement</strong><p>Take good care of the item, arrange the handoff with the owner, and return it on time in the same condition. This demo does not collect money or hold a deposit.</p></div></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>I understand and agree to the sharing terms.</span></label><button className="button primary wide" type="submit" disabled={!accepted || invalid}>Send request <ArrowRight size={18} /></button></form><aside className="panel summary-panel"><h2>Request summary</h2><div className="summary-item"><img src={item.image} alt="" /><span><strong>{item.name}</strong><small>From {item.owner}</small></span></div><div className="summary-line"><span>Daily rate</span><strong>{money(item.price)}</strong></div><div className="summary-line"><span>Duration</span><strong>{days || '—'} {days === 1 ? 'day' : 'days'}</strong></div><div className="summary-total"><span>Estimated rent</span><strong>{money(rent)}</strong></div><p><ShieldCheck size={16} /> No payment now. Settle details directly with the owner after confirmation.</p></aside></div></section>;
+}
 
-  const navigateTo = (screen, props = {}) => {
-    if (props.itemId) setSelectedItemId(props.itemId);
-    if (props.bookingParams) setBookingParams(props.bookingParams);
-    setCurrentScreen(screen);
-    window.scrollTo(0, 0);
-  };
+function BookingCard({ booking, item, renter, role, onAction, onRate }) {
+  const [rating, setRating] = useState(0);
+  if (!item) return null;
+  return <article className="booking-card"><div className="booking-card-main"><img src={item.image} alt="" /><div><div className="booking-top"><Status value={booking.status} /><span className="booking-id">{booking.id}</span></div><h3>{item.name}</h3><p>{role === 'owner' ? 'Requested by ' + (renter?.name || 'Student') : 'Owned by ' + item.owner}</p><div className="booking-details"><span><CalendarDays size={15} /> {dateLabel(booking.startDate)} – {dateLabel(booking.endDate)}</span><span><Wallet size={15} /> {money(booking.rent)} estimated</span></div></div></div><div className="booking-actions">{role === 'owner' && booking.status === 'Pending' && <><button className="button primary small" onClick={() => onAction('Confirmed')}>Confirm request <Check size={16} /></button><button className="button quiet small" onClick={() => onAction('Declined')}>Decline</button></>}{role === 'owner' && booking.status === 'Return requested' && <button className="button primary small" onClick={() => onAction('Completed')}>Confirm return <Check size={16} /></button>}{role === 'renter' && booking.status === 'Pending' && <button className="button quiet small" onClick={() => onAction('Cancelled')}>Cancel request</button>}{role === 'renter' && booking.status === 'Confirmed' && <button className="button primary small" onClick={() => onAction('Return requested')}>Request return <RotateCcw size={16} /></button>}{role === 'renter' && booking.status === 'Completed' && !booking.rating && <div className="rating-action"><span>Rate this rental</span>{[1, 2, 3, 4, 5].map(value => <button key={value} onClick={() => setRating(value)} aria-label={'Rate ' + value + ' stars'}><Star size={20} fill={value <= rating ? 'currentColor' : 'none'} /></button>)}{rating > 0 && <button className="button primary small" onClick={() => onRate(rating)}>Save</button>}</div>}{booking.rating && <span className="rated"><Star size={16} fill="currentColor" /> Your rating: {booking.rating}/5</span>}</div></article>;
+}
 
-  const handleNavigateToSearch = (category = 'All') => {
-    setSearchInitialCategory(category);
-    setActiveTab('Search');
-    setCurrentScreen('Search');
-    window.scrollTo(0, 0);
-  };
+function NewListingPage({ onBack, onSubmit }) {
+  const [values, setValues] = useState({ name: '', description: '', category: 'Electronics', condition: 'Good', price: '', value: '' });
+  const update = (key, value) => setValues(current => ({ ...current, [key]: value }));
+  return <section className="form-page"><button className="back-link" onClick={onBack}><ArrowLeft size={18} /> Back to listings</button><div className="page-heading"><div><p className="eyebrow">PASS IT ON</p><h1>List something <em>useful.</em></h1><p>A clear title and helpful description make it easier for others to borrow.</p></div></div><div className="form-grid"><form className="panel listing-form" onSubmit={event => { event.preventDefault(); onSubmit(values); }}><h2>Item details</h2><label>Item name<input required minLength="4" maxLength="80" value={values.name} onChange={event => update('name', event.target.value)} placeholder="e.g. DSLR Camera" /></label><label>Description<textarea required minLength="12" maxLength="500" rows="4" value={values.description} onChange={event => update('description', event.target.value)} placeholder="What’s included? What should someone know before borrowing?" /></label><div className="date-grid"><label>Category<select value={values.category} onChange={event => update('category', event.target.value)}>{CATEGORIES.slice(1).map(name => <option key={name}>{name}</option>)}</select></label><label>Condition<select value={values.condition} onChange={event => update('condition', event.target.value)}>{CONDITIONS.map(name => <option key={name}>{name}</option>)}</select></label></div><div className="date-grid"><label>Price per day (₹)<input required type="number" min="1" max="10000" step="1" value={values.price} onChange={event => update('price', event.target.value)} placeholder="50" /></label><label>Approx. item value (₹)<input required type="number" min="1" max="1000000" step="1" value={values.value} onChange={event => update('value', event.target.value)} placeholder="2000" /></label></div><button className="button primary wide" type="submit">Publish listing <ArrowRight size={18} /></button></form><aside className="panel tip-panel"><span className="tip-icon"><Camera size={24} /></span><h3>Make your listing shine</h3><p>In this demo, a category image is added automatically. Describe what’s included and how to use the item so borrowers know what to expect.</p><div><CheckCircle2 size={18} /> Clear condition and price</div><div><CheckCircle2 size={18} /> Helpful handoff details</div><div><CheckCircle2 size={18} /> No payment setup needed</div></aside></div></section>;
+}
 
-  const addBooking = (booking) => {
-    setBookings([{...booking, id: 'b' + Date.now()}, ...bookings]);
-  };
-
-  const updateBookingStatus = (id, status) => {
-    setBookings(bookings.map(b => b.id === id ? { ...b, status } : b));
-  };
-
-  const addItem = (item) => {
-    setItems([{...item, id: 'i' + Date.now()}, ...items]);
-  };
-
-  const activeBooking = bookings.find(b => b.status === 'Requested' || b.status === 'Active');
-
-  let ScreenComponent;
-  if (currentScreen === 'Home') {
-    ScreenComponent = <HomeScreen items={items} user={user} activeBooking={activeBooking} onNavigateToSearch={handleNavigateToSearch} onSelect={(id) => navigateTo('Details', { itemId: id })} />;
-  }
-  else if (currentScreen === 'Search') {
-    ScreenComponent = <SearchScreen items={items} initialCategory={searchInitialCategory} onSelect={(id) => navigateTo('Details', { itemId: id })} />;
-  }
-  else if (currentScreen === 'Rentals') {
-    ScreenComponent = <RentalsScreen bookings={bookings} items={items} onUpdateStatus={updateBookingStatus} />;
-  }
-  else if (currentScreen === 'Profile') {
-    ScreenComponent = <ProfileScreen user={user} onReset={resetData} onAdd={addItem} items={items.filter(i => i.owner === user.name)} />;
-  }
-  else if (currentScreen === 'Details') {
-    const item = items.find(i => i.id === selectedItemId);
-    ScreenComponent = <DetailsScreen item={item} onBack={() => setCurrentScreen(activeTab === 'Search' ? 'Search' : 'Home')} onBook={(params) => navigateTo('Booking', { bookingParams: params })} />;
-  }
-  else if (currentScreen === 'Booking') {
-    const item = items.find(i => i.id === bookingParams.itemId);
-    ScreenComponent = <BookingScreen item={item} initialDays={bookingParams.days} onBack={() => setCurrentScreen('Details')} onContinue={(params) => navigateTo('Payment', { bookingParams: params })} />;
-  }
-  else if (currentScreen === 'Payment') {
-    const item = items.find(i => i.id === bookingParams.itemId);
-    ScreenComponent = <PaymentScreen item={item} params={bookingParams} user={user} onBack={() => setCurrentScreen('Booking')} onSuccess={(booking) => {
-      addBooking(booking);
-      setActiveTab('Rentals');
-      setCurrentScreen('Rentals');
-    }} />;
-  }
-
-  const showBottomNav = ['Home', 'Search', 'Rentals', 'Profile'].includes(currentScreen);
-
-  return (
-    <div className="app">
-      {/* Desktop Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-           <div className="ring"></div> Campus Loop
-        </div>
-        <button className={`nav-item-side ${activeTab === 'Home' ? 'active' : ''}`} onClick={() => { setActiveTab('Home'); setCurrentScreen('Home'); }}>
-          <HomeIcon size={20} /> <span>Home</span>
-        </button>
-        <button className={`nav-item-side ${activeTab === 'Search' ? 'active' : ''}`} onClick={() => { setActiveTab('Search'); setCurrentScreen('Search'); }}>
-          <Search size={20} /> <span>Search</span>
-        </button>
-        <button className={`nav-item-side ${activeTab === 'Rentals' ? 'active' : ''}`} onClick={() => { setActiveTab('Rentals'); setCurrentScreen('Rentals'); }}>
-          <List size={20} /> <span>Rentals</span>
-        </button>
-        <button className={`nav-item-side ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => { setActiveTab('Profile'); setCurrentScreen('Profile'); }}>
-          <User size={20} /> <span>Profile</span>
-        </button>
-      </aside>
-
-      <main className="main-content">
-        {ScreenComponent}
-      </main>
-
-      {/* Mobile/Tablet Bottom Nav */}
-      {showBottomNav && (
-        <nav className="nav">
-          <button className={`nav-item ${activeTab === 'Home' ? 'active' : ''}`} onClick={() => { setActiveTab('Home'); setCurrentScreen('Home'); }}>
-            <HomeIcon size={24} /> <span>Home</span>
-          </button>
-          <button className={`nav-item ${activeTab === 'Search' ? 'active' : ''}`} onClick={() => { setActiveTab('Search'); setCurrentScreen('Search'); }}>
-            <Search size={24} /> <span>Search</span>
-          </button>
-          <button className={`nav-item ${activeTab === 'Rentals' ? 'active' : ''}`} onClick={() => { setActiveTab('Rentals'); setCurrentScreen('Rentals'); }}>
-            <List size={24} /> <span>Rentals</span>
-          </button>
-          <button className={`nav-item ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => { setActiveTab('Profile'); setCurrentScreen('Profile'); }}>
-            <User size={24} /> <span>Profile</span>
-          </button>
-        </nav>
-      )}
-    </div>
-  );
+function ProfilePage({ state, user, onSwitch, onReset }) {
+  return <section><div className="page-heading"><div><p className="eyebrow">EXPLORE THE FULL FLOW</p><h1>Demo <em>profiles.</em></h1><p>Switch between students to test both sides of a rental request.</p></div></div><div className="profile-card"><span className="profile-avatar">{user.initials}</span><div><Pill tone="green">CURRENT PROFILE</Pill><h2>{user.name}</h2><p>{user.course} · {user.year}</p><span><MapPin size={15} /> {user.campus}</span></div></div><div className="profile-section"><h2>Switch demo profile</h2><p>Try requesting an item as one student, then switch to its owner to confirm it.</p><div className="profile-grid">{state.users.map(entry => <button key={entry.id} className={'profile-option ' + (entry.id === user.id ? 'selected' : '')} onClick={() => onSwitch(entry.id)}><span className="user-avatar">{entry.initials}</span><span><strong>{entry.name}</strong><small>{entry.course}</small></span>{entry.id === user.id ? <CheckCircle2 size={19} /> : <ArrowUpRight size={18} />}</button>)}</div></div><div className="demo-reset"><div><strong>Start fresh</strong><p>Restore the original sample items and bookings.</p></div><button className="button quiet" onClick={() => { if (window.confirm('Reset all demo listings and bookings?')) onReset(); }}><RotateCcw size={17} /> Reset demo</button></div></section>;
 }
