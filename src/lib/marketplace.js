@@ -3,6 +3,12 @@ import seed from '../data.json' with { type: 'json' };
 export const STORAGE_KEY = 'campusloop-demo-v3';
 export const CATEGORIES = ['All', 'Electronics', 'Lab', 'Books', 'Cycles'];
 export const CONDITIONS = ['Like new', 'Good', 'Fair'];
+export const DEMO_USERS = [
+  { id: 'u1', name: 'Rujal Sharma', initials: 'RS', rollNumber: 'C-25', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
+  { id: 'u2', name: 'Sudhanshu Pendalwar', initials: 'SP', rollNumber: 'C-46', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
+  { id: 'u3', name: 'Shlok Mishra', initials: 'SM', rollNumber: 'C-60', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
+  { id: 'u4', name: 'Vansh Jain', initials: 'VJ', rollNumber: 'C-61', course: 'AI & Data Science', campus: 'DYPIT Pimpri' },
+];
 
 const addDays = (date, days) => {
   const next = new Date(`${date}T12:00:00Z`);
@@ -21,12 +27,7 @@ export function daysInclusive(start, end) {
 
 export function makeInitialState() {
   const base = today();
-  const users = [
-    { id: 'u1', name: 'Rujal Sharma', initials: 'RS', course: 'AI & Data Science', year: 'Second year', campus: 'DYPIT Pimpri' },
-    { id: 'u2', name: 'Aarav Kulkarni', initials: 'AK', course: 'Mechanical Engineering', year: 'Third year', campus: 'DYPIT Pimpri' },
-    { id: 'u3', name: 'Neha Patil', initials: 'NP', course: 'Computer Engineering', year: 'Second year', campus: 'DYPIT Pimpri' },
-    { id: 'u4', name: 'Riya Mehta', initials: 'RM', course: 'Electronics', year: 'Final year', campus: 'DYPIT Pimpri' },
-  ];
+  const users = DEMO_USERS;
   const ownerIds = ['u2', 'u3', 'u2', 'u4', 'u3', 'u4', 'u2', 'u3', 'u2', 'u4', 'u3', 'u1'];
   const descriptions = [
     'Reliable calculator for exams and lab sessions. Includes the original case and fresh batteries.',
@@ -55,15 +56,28 @@ export function makeInitialState() {
     { id: 'CL-2409', itemId: '12', renterId: 'u3', startDate: addDays(base, 5), endDate: addDays(base, 6), days: 2, rent: 120, status: 'Pending', createdAt: addDays(base, -1) },
     { id: 'CL-2392', itemId: '5', renterId: 'u1', startDate: addDays(base, -9), endDate: addDays(base, -7), days: 3, rent: 30, status: 'Completed', createdAt: addDays(base, -14), rating: 5 },
   ];
-  return { version: 3, currentUserId: 'u1', users, items, bookings };
+  return { version: 4, currentUserId: 'u1', users, items, bookings };
+}
+
+export function upgradeState(state) {
+  if (![3, 4].includes(state?.version) || !Array.isArray(state.items) || !Array.isArray(state.bookings) || !Array.isArray(state.users)) return null;
+  return {
+    ...state,
+    version: 4,
+    users: DEMO_USERS,
+    items: state.items.map(item => {
+      const owner = DEMO_USERS.find(user => user.id === item.ownerId);
+      return owner ? { ...item, owner: owner.name } : item;
+    }),
+  };
 }
 
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const state = JSON.parse(raw);
-      if (state.version === 3 && Array.isArray(state.items) && Array.isArray(state.bookings) && Array.isArray(state.users)) return state;
+      const state = upgradeState(JSON.parse(raw));
+      if (state) return state;
     }
   } catch { /* Reset damaged demo data. */ }
   return makeInitialState();

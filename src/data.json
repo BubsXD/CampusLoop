@@ -1,23 +1,16 @@
 {
   "items": [
-    { "id": "1", "name": "Scientific Calculator", "category": "Lab", "owner": "Aarav K.", "rating": 4.9, "price": 20, "value": 1200, "condition": "Like new", "image": "/images/scientific-calculator.svg" },
-    { "id": "2", "name": "DSLR Camera", "category": "Electronics", "owner": "Neha P.", "rating": 4.8, "price": 250, "value": 28000, "condition": "Good", "deposit": 3000, "image": "/images/dslr-camera.svg" },
-    { "id": "3", "name": "Drafter Set", "category": "Lab", "owner": "Omkar S.", "rating": 4.7, "price": 15, "value": 900, "condition": "Good", "image": "/images/drafter-set.svg" },
-    { "id": "4", "name": "City Cycle", "category": "Cycles", "owner": "Riya M.", "rating": 4.8, "price": 60, "value": 7500, "condition": "Good", "deposit": 1000, "image": "/images/city-cycle.svg" },
-    { "id": "5", "name": "Engineering Mathematics textbook", "category": "Books", "owner": "Sanket D.", "rating": 4.6, "price": 10, "value": 600, "condition": "Fair", "image": "/images/engineering-maths-textbook.svg" },
-    { "id": "6", "name": "Arduino Starter Kit", "category": "Electronics", "owner": "Isha B.", "rating": 4.9, "price": 80, "value": 3500, "condition": "Like new", "image": "/images/arduino-starter-kit.svg" },
-    { "id": "7", "name": "Bluetooth Speaker", "category": "Electronics", "owner": "Kunal T.", "rating": 4.5, "price": 70, "value": 2500, "condition": "Good", "image": "/images/bluetooth-speaker.svg" },
-    { "id": "8", "name": "Lab Coat", "category": "Lab", "owner": "Prachi J.", "rating": 4.7, "price": 10, "value": 500, "condition": "Good", "image": "/images/lab-coat.svg" },
-    { "id": "9", "name": "Scientific Calculator (Casio fx-991EX)", "category": "Lab", "owner": "Varun G.", "rating": 4.8, "price": 25, "value": 1500, "condition": "Like new", "image": "/images/casio-fx-991ex.svg" },
-    { "id": "10", "name": "Mountain Bike", "category": "Cycles", "owner": "Tanmay R.", "rating": 4.6, "price": 90, "value": 12000, "condition": "Good", "deposit": 1500, "image": "/images/mountain-bike.svg" },
-    { "id": "11", "name": "Data Structures textbook", "category": "Books", "owner": "Aditi W.", "rating": 4.7, "price": 10, "value": 550, "condition": "Good", "image": "/images/data-structures-textbook.svg" },
-    { "id": "12", "name": "Ring Light with Tripod", "category": "Electronics", "owner": "Sarthak N.", "rating": 4.5, "price": 60, "value": 2200, "condition": "Good", "image": "/images/ring-light-tripod.svg" }
-  ],
-  "users": [
-    { "id": "u1", "name": "Rujal Sharma", "college": "Dr. D. Y. Patil Institute of Technology, Pimpri", "major": "SE AI&DS", "verified": true }
-  ],
-  "bookings": [
-    { "id": "b1", "itemId": "5", "userId": "u1", "status": "Returned", "days": 3, "total": 30 },
-    { "id": "b2", "itemId": "6", "userId": "u1", "status": "Active", "days": 5, "total": 400 }
+    { "id": "1", "name": "Scientific Calculator", "category": "Lab", "rating": 4.9, "price": 20, "value": 1200, "condition": "Like new", "image": "/images/scientific-calculator.svg" },
+    { "id": "2", "name": "DSLR Camera", "category": "Electronics", "rating": 4.8, "price": 250, "value": 28000, "condition": "Good", "deposit": 3000, "image": "/images/dslr-camera.svg" },
+    { "id": "3", "name": "Drafter Set", "category": "Lab", "rating": 4.7, "price": 15, "value": 900, "condition": "Good", "image": "/images/drafter-set.svg" },
+    { "id": "4", "name": "City Cycle", "category": "Cycles", "rating": 4.8, "price": 60, "value": 7500, "condition": "Good", "deposit": 1000, "image": "/images/city-cycle.svg" },
+    { "id": "5", "name": "Engineering Mathematics textbook", "category": "Books", "rating": 4.6, "price": 10, "value": 600, "condition": "Fair", "image": "/images/engineering-maths-textbook.svg" },
+    { "id": "6", "name": "Arduino Starter Kit", "category": "Electronics", "rating": 4.9, "price": 80, "value": 3500, "condition": "Like new", "image": "/images/arduino-starter-kit.svg" },
+    { "id": "7", "name": "Bluetooth Speaker", "category": "Electronics", "rating": 4.5, "price": 70, "value": 2500, "condition": "Good", "image": "/images/bluetooth-speaker.svg" },
+    { "id": "8", "name": "Lab Coat", "category": "Lab", "rating": 4.7, "price": 10, "value": 500, "condition": "Good", "image": "/images/lab-coat.svg" },
+    { "id": "9", "name": "Scientific Calculator (Casio fx-991EX)", "category": "Lab", "rating": 4.8, "price": 25, "value": 1500, "condition": "Like new", "image": "/images/casio-fx-991ex.svg" },
+    { "id": "10", "name": "Mountain Bike", "category": "Cycles", "rating": 4.6, "price": 90, "value": 12000, "condition": "Good", "deposit": 1500, "image": "/images/mountain-bike.svg" },
+    { "id": "11", "name": "Data Structures textbook", "category": "Books", "rating": 4.7, "price": 10, "value": 550, "condition": "Good", "image": "/images/data-structures-textbook.svg" },
+    { "id": "12", "name": "Ring Light with Tripod", "category": "Electronics", "rating": 4.5, "price": 60, "value": 2200, "condition": "Good", "image": "/images/ring-light-tripod.svg" }
   ]
 }

@@ -1,12 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBooking, createItem, daysInclusive, makeInitialState, rateBooking, setItemAvailability, today, updateBooking } from '../src/lib/marketplace.js';
+import { DEMO_USERS, createBooking, createItem, daysInclusive, makeInitialState, rateBooking, setItemAvailability, today, updateBooking, upgradeState } from '../src/lib/marketplace.js';
 
 const futureDate = offset => {
   const date = new Date(today() + 'T12:00:00Z');
   date.setUTCDate(date.getUTCDate() + offset);
   return date.toISOString().slice(0, 10);
 };
+
+test('demo profiles match the project team and migrate saved listings', () => {
+  assert.deepEqual(DEMO_USERS.map(({ name, rollNumber }) => [name, rollNumber]), [
+    ['Rujal Sharma', 'C-25'],
+    ['Sudhanshu Pendalwar', 'C-46'],
+    ['Shlok Mishra', 'C-60'],
+    ['Vansh Jain', 'C-61'],
+  ]);
+  assert.ok(DEMO_USERS.every(user => user.course === 'AI & Data Science'));
+  const state = makeInitialState();
+  const old = { ...state, version: 3, items: state.items.map(item => ({ ...item, owner: 'Old demo name' })) };
+  const migrated = upgradeState(old);
+  assert.equal(migrated.bookings, old.bookings);
+  assert.equal(migrated.items.find(item => item.id === '1').owner, 'Sudhanshu Pendalwar');
+  assert.equal(migrated.version, 4);
+});
 
 test('rental days are inclusive and reject a reversed range', () => {
   assert.equal(daysInclusive('2026-10-12', '2026-10-14'), 3);

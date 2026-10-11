@@ -32,6 +32,17 @@ npm run build
 
 The app prevents requests for your own item, periods longer than 30 days, and overlapping active requests. Owners can pause listings when no active requests remain. **Reset demo** restores the original sample state.
 
+## Demo profiles
+
+All four switchable profiles represent the AI & Data Science branch:
+
+| Name | Roll number |
+| --- | --- |
+| Rujal Sharma | C-25 |
+| Sudhanshu Pendalwar | C-46 |
+| Shlok Mishra | C-60 |
+| Vansh Jain | C-61 |
+
 ## Structure
 
 - `src/App.jsx` — screens and interactions
